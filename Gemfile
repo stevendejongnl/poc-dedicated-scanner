@@ -15,3 +15,6 @@ gem 'logger'
 gem 'benchmark'
 gem 'mutex_m'
 gem 'nkf'
+
+# Fastlane for iOS code signing and TestFlight uploads
+gem 'fastlane'

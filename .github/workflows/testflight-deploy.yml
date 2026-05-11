@@ -1,0 +1,129 @@
+name: iOS — TestFlight
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: testflight-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: macos-15
+    concurrency:
+      group: cloudflare-bypass
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bypass Cloudflare for Gitea access
+        uses: xiaotianxt/bypass-cloudflare-for-github-action@v2.1.0
+        with:
+          cf_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cf_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          cf_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          disable_bot_fight_mode: 'true'
+          bfm_propagation_delay: 30
+
+      - name: Configure git for Gitea access
+        run: |
+          git config --global http.https://git.madebysteven.nl.sslVerify false
+          git config --global http.connectTimeout 60
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 0
+
+      - name: Configure git credentials for Gitea
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          git config --global credential.helper store
+          echo "https://stevendejong:${GITEA_TOKEN}@git.madebysteven.nl" >> ~/.git-credentials
+          chmod 600 ~/.git-credentials
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Restore CocoaPods cache
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-
+
+      - name: Install pods
+        working-directory: ios
+        run: bundle exec pod install
+
+      - name: Create App Store Connect API key JSON
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+        run: |
+          mkdir -p "$HOME/private_keys"
+          JSON_PATH="$HOME/private_keys/api_key.json"
+          jq -n \
+            --arg key_id "$ASC_KEY_ID" \
+            --arg issuer_id "$ASC_ISSUER_ID" \
+            --arg key "$ASC_KEY_CONTENT" \
+            '{key_id: $key_id, issuer_id: $issuer_id, key: $key, in_house: false}' > "$JSON_PATH"
+          echo "APP_STORE_CONNECT_API_KEY_JSON_PATH=$JSON_PATH" >> "$GITHUB_ENV"
+
+      - name: Create temporary keychain
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="temp_$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -t 7200 -u "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Sync certificates
+        working-directory: ios
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_NAME: ${{ env.KEYCHAIN_PATH }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ env.KEYCHAIN_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_JSON_PATH: ${{ env.APP_STORE_CONNECT_API_KEY_JSON_PATH }}
+        run: bundle exec fastlane sync_certificates
+
+      - name: Build and upload to TestFlight
+        working-directory: ios
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_NAME: ${{ env.KEYCHAIN_PATH }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ env.KEYCHAIN_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_JSON_PATH: ${{ env.APP_STORE_CONNECT_API_KEY_JSON_PATH }}
+        run: bundle exec fastlane deploy_testflight
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+      - name: Cleanup API key
+        if: always()
+        env:
+          APP_STORE_CONNECT_API_KEY_JSON_PATH: ${{ env.APP_STORE_CONNECT_API_KEY_JSON_PATH }}
+        run: rm -f "$APP_STORE_CONNECT_API_KEY_JSON_PATH"

@@ -1,0 +1,99 @@
+name: Initialize iOS
+
+# Run this workflow ONCE manually to:
+# 1. Install CocoaPods and commit Podfile.lock
+# 2. Generate fastlane match certificates for com.poc.dedicatedscanner
+#    and push them to the private Gitea cert repo
+#
+# After this runs successfully, use testflight-deploy.yml for all future builds.
+on:
+  workflow_dispatch:
+
+jobs:
+  init:
+    runs-on: macos-15
+    concurrency:
+      group: cloudflare-bypass
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bypass Cloudflare for Gitea access
+        uses: xiaotianxt/bypass-cloudflare-for-github-action@v2.1.0
+        with:
+          cf_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cf_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          cf_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          disable_bot_fight_mode: 'true'
+          bfm_propagation_delay: 30
+
+      - name: Configure git for Gitea access
+        run: |
+          git config --global http.https://git.madebysteven.nl.sslVerify false
+          git config --global http.connectTimeout 60
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 0
+
+      - name: Configure git credentials for Gitea
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          git config --global credential.helper store
+          echo "https://stevendejong:${GITEA_TOKEN}@git.madebysteven.nl" >> ~/.git-credentials
+          chmod 600 ~/.git-credentials
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Install pods
+        working-directory: ios
+        run: bundle exec pod install
+
+      - name: Create App Store Connect API key JSON
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+        run: |
+          mkdir -p "$HOME/private_keys"
+          JSON_PATH="$HOME/private_keys/api_key.json"
+          jq -n \
+            --arg key_id "$ASC_KEY_ID" \
+            --arg issuer_id "$ASC_ISSUER_ID" \
+            --arg key "$ASC_KEY_CONTENT" \
+            '{key_id: $key_id, issuer_id: $issuer_id, key: $key, in_house: false}' > "$JSON_PATH"
+          echo "APP_STORE_CONNECT_API_KEY_JSON_PATH=$JSON_PATH" >> "$GITHUB_ENV"
+
+      - name: Generate certificates and provisioning profiles
+        working-directory: ios
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_JSON_PATH: ${{ env.APP_STORE_CONNECT_API_KEY_JSON_PATH }}
+        run: bundle exec fastlane generate_certificates
+
+      - name: Commit Podfile.lock
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ios/Podfile.lock
+          git commit -m "chore: add Podfile.lock [skip ci]" || echo "Nothing to commit"
+          git push
+
+      - name: Cleanup API key
+        if: always()
+        env:
+          APP_STORE_CONNECT_API_KEY_JSON_PATH: ${{ env.APP_STORE_CONNECT_API_KEY_JSON_PATH }}
+        run: rm -f "$APP_STORE_CONNECT_API_KEY_JSON_PATH"
