@@ -28,6 +28,7 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = PocDedicatedScanner/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AB0001000000000000000001 /* BluetoothAccessoryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BluetoothAccessoryPicker.swift; path = PocDedicatedScanner/BluetoothAccessoryPicker.swift; sourceTree = "<group>"; };
 		AB0001000000000000000002 /* BluetoothAccessoryPicker.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = BluetoothAccessoryPicker.m; path = PocDedicatedScanner/BluetoothAccessoryPicker.m; sourceTree = "<group>"; };
+		AB0001000000000000000004 /* PocDedicatedScanner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "PocDedicatedScanner-Bridging-Header.h"; path = "PocDedicatedScanner/PocDedicatedScanner-Bridging-Header.h"; sourceTree = "<group>"; };
 		AB0001000000000000000003 /* ExternalAccessory.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ExternalAccessory.framework; path = System/Library/Frameworks/ExternalAccessory.framework; sourceTree = SDKROOT; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -52,6 +53,7 @@
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				AB0001000000000000000001 /* BluetoothAccessoryPicker.swift */,
 				AB0001000000000000000002 /* BluetoothAccessoryPicker.m */,
+				AB0001000000000000000004 /* PocDedicatedScanner-Bridging-Header.h */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -272,6 +274,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = PocDedicatedScanner/Info.plist;
+				SWIFT_OBJC_BRIDGING_HEADER = "PocDedicatedScanner/PocDedicatedScanner-Bridging-Header.h";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -301,6 +304,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = PocDedicatedScanner/Info.plist;
+				SWIFT_OBJC_BRIDGING_HEADER = "PocDedicatedScanner/PocDedicatedScanner-Bridging-Header.h";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
