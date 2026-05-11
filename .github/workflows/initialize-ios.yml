@@ -12,6 +12,8 @@ on:
 jobs:
   init:
     runs-on: macos-15
+    permissions:
+      contents: write
     concurrency:
       group: cloudflare-bypass
       cancel-in-progress: false
