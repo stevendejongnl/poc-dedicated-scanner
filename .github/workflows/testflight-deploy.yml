@@ -51,7 +51,6 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
-          working-directory: ios
 
       - name: Install JS deps
         run: npm ci
@@ -65,7 +64,7 @@ jobs:
 
       - name: Install pods
         working-directory: ios
-        run: bundle exec pod install
+        run: pod install
 
       - name: Create App Store Connect API key JSON
         env:
