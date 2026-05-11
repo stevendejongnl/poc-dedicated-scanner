@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: macos-15
+    runs-on: macos-latest
     concurrency:
       group: cloudflare-bypass
       cancel-in-progress: false
