@@ -63,5 +63,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>UISupportedExternalAccessoryProtocols</key>
+	<array/>
 </dict>
 </plist>

@@ -66,6 +66,19 @@ export function HomeScreen() {
           </View>
         )}
 
+        <Pressable style={styles.card} onPress={selectBle}>
+          <View style={styles.cardIcon}>
+            <Text style={styles.cardIconText}>📡</Text>
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>BLE GATT scanner</Text>
+            <Text style={styles.cardDesc}>
+              Scan for nearby Bluetooth Low Energy devices and connect directly from the app. iOS shows the pairing prompt without leaving the app.
+            </Text>
+            <Text style={styles.cardTag}>Stays in-app · For BLE-mode scanners</Text>
+          </View>
+        </Pressable>
+
         <Pressable style={styles.card} onPress={selectHid}>
           <View style={styles.cardIcon}>
             <Text style={styles.cardIconText}>⌨️</Text>
@@ -75,20 +88,7 @@ export function HomeScreen() {
             <Text style={styles.cardDesc}>
               Your scanner is paired via Bluetooth Settings and types like a keyboard. Works with most barcode scanners out of the box.
             </Text>
-            <Text style={styles.cardTag}>Recommended · Pair via OS settings</Text>
-          </View>
-        </Pressable>
-
-        <Pressable style={styles.card} onPress={selectBle}>
-          <View style={styles.cardIcon}>
-            <Text style={styles.cardIconText}>📡</Text>
-          </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.cardTitle}>BLE GATT scanner</Text>
-            <Text style={styles.cardDesc}>
-              Scan for nearby Bluetooth Low Energy devices and connect directly from the app.
-            </Text>
-            <Text style={styles.cardTag}>For BLE-mode scanners</Text>
+            <Text style={styles.cardTag}>Pair via OS Settings · Most scanners</Text>
           </View>
         </Pressable>
 
