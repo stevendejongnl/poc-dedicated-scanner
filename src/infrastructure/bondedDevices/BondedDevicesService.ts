@@ -16,9 +16,8 @@ export async function getBondedDevices(): Promise<HidDevice[]> {
   }
 
   try {
-    // react-native-bluetooth-classic is a native module; import lazily so the
-    // module never gets loaded on iOS (where it would throw at link time).
-    const {default: RNBluetoothClassic} = await import('react-native-bluetooth-classic');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const RNBluetoothClassic = (require('react-native-bluetooth-classic') as any).default;
     const bonded = await RNBluetoothClassic.getBondedDevices();
 
     return bonded.map((d: any) => ({
