@@ -15,7 +15,7 @@ class BluetoothAccessoryPicker: NSObject {
           return
         }
         let code: String
-        switch EABluetoothAccessoryPickerError(rawValue: error.code) {
+        switch EABluetoothAccessoryPickerError.Code(rawValue: error.code) {
         case .alreadyConnected:
           // Treat as success — already paired
           resolve(nil)
