@@ -1,5 +1,6 @@
 import React, {useCallback, useState} from 'react';
 import {
+  Alert,
   Linking,
   Platform,
   Pressable,
@@ -15,7 +16,16 @@ let eventCounter = 0;
 
 function openBluetoothSettings() {
   if (Platform.OS === 'ios') {
-    Linking.openURL('App-Prefs:root=Bluetooth').catch(() => Linking.openSettings());
+    // iOS 18 blocked all App-Prefs: deep links — no URL scheme opens Bluetooth settings.
+    // Show instructions and offer to open the Settings root so the user is one tap away.
+    Alert.alert(
+      'Pair via Bluetooth Settings',
+      'iOS does not allow apps to open the Bluetooth page directly.\n\nGo to Settings → Bluetooth and pair your scanner from there.',
+      [
+        {text: 'Open Settings', onPress: () => Linking.openSettings()},
+        {text: 'OK', style: 'cancel'},
+      ],
+    );
   } else {
     Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() =>
       Linking.openSettings(),
