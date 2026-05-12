@@ -65,5 +65,9 @@
 	<false/>
 	<key>UISupportedExternalAccessoryProtocols</key>
 	<array/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>prefs</string>
+	</array>
 </dict>
 </plist>
