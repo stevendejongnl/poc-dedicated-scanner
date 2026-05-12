@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {bleScannerService} from '@/infrastructure/ble/BleScannerService';
+import {bleScannerService, type DiscoveredCharacteristic} from '@/infrastructure/ble/BleScannerService';
 import {
   getConnectedAccessories,
   type ConnectedAccessory,
@@ -23,6 +23,9 @@ export function DebugScreen() {
   const [bleDevices, setBleDevices] = useState<BleDevice[]>([]);
   const [scanning, setScanning] = useState(false);
   const [mfiLoading, setMfiLoading] = useState(false);
+  const [connectedId, setConnectedId] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [gattChars, setGattChars] = useState<DiscoveredCharacteristic[]>([]);
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadMfi = useCallback(async () => {
@@ -70,6 +73,28 @@ export function DebugScreen() {
     if (scanTimer.current) {
       clearTimeout(scanTimer.current);
     }
+  }, []);
+
+  const connectForInspect = useCallback(async (device: BleDevice) => {
+    setConnecting(device.id);
+    try {
+      bleScannerService.stopScan();
+      setScanning(false);
+      await bleScannerService.connect(device.id, () => {});
+      setConnectedId(device.id);
+      setGattChars(bleScannerService.getDiscoveredCharacteristics());
+    } catch (e: any) {
+      setConnectedId(null);
+      setGattChars([]);
+    } finally {
+      setConnecting(null);
+    }
+  }, []);
+
+  const disconnectInspect = useCallback(async () => {
+    await bleScannerService.disconnect();
+    setConnectedId(null);
+    setGattChars([]);
   }, []);
 
   return (
@@ -146,12 +171,58 @@ export function DebugScreen() {
               <View key={dev.id} style={styles.deviceCard}>
                 <Row label="Name" value={dev.name ?? '(unnamed)'} bold />
                 <Row label="ID / MAC" value={dev.id} mono />
-                <Row
-                  label="RSSI"
-                  value={dev.rssi != null ? `${dev.rssi} dBm` : '—'}
-                />
+                <Row label="RSSI" value={dev.rssi != null ? `${dev.rssi} dBm` : '—'} />
+                {connectedId === dev.id ? (
+                  <Pressable style={styles.inspectBtn} onPress={disconnectInspect}>
+                    <Text style={styles.inspectBtnText}>Disconnect</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.inspectBtn}
+                    onPress={() => connectForInspect(dev)}
+                    disabled={!!connecting}>
+                    <Text style={styles.inspectBtnText}>
+                      {connecting === dev.id ? 'Connecting…' : 'Inspect GATT'}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             ))
+          )}
+
+          {gattChars.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>GATT Characteristics</Text>
+              <Text style={styles.sectionNote}>
+                Device: {connectedId}
+              </Text>
+              {(() => {
+                const byService: Record<string, DiscoveredCharacteristic[]> = {};
+                gattChars.forEach(c => {
+                  if (!byService[c.serviceUUID]) {byService[c.serviceUUID] = [];}
+                  byService[c.serviceUUID].push(c);
+                });
+                return Object.entries(byService).map(([svcUUID, chars]) => (
+                  <View key={svcUUID} style={styles.deviceCard}>
+                    <Text style={styles.serviceLabel}>Service: {svcUUID}</Text>
+                    {chars.map(c => (
+                      <View key={c.uuid} style={styles.charRow}>
+                        <Text style={styles.charUUID} selectable>{c.uuid}</Text>
+                        <Text style={styles.charProps}>
+                          {[
+                            c.isNotifiable && 'notify',
+                            c.isIndicatable && 'indicate',
+                            c.isReadable && 'read',
+                            c.isWritableWithResponse && 'write',
+                            c.isWritableWithoutResponse && 'write-nr',
+                          ].filter(Boolean).join(' · ')}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ));
+              })()}
+            </View>
           )}
         </View>
 
@@ -237,4 +308,17 @@ const styles = StyleSheet.create({
   rowValue: {flex: 1, fontSize: 12, color: '#222'},
   rowValueBold: {fontWeight: '700', fontSize: 13, color: '#1A1A1A'},
   rowValueMono: {fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', fontSize: 11},
+  inspectBtn: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#1A5276',
+    borderRadius: 6,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  inspectBtnText: {color: '#1A5276', fontSize: 12, fontWeight: '600'},
+  serviceLabel: {fontSize: 11, fontWeight: '700', color: '#555', marginBottom: 6, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace'},
+  charRow: {paddingVertical: 3, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0F0F0'},
+  charUUID: {fontSize: 11, color: '#333', fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace'},
+  charProps: {fontSize: 10, color: '#888', marginTop: 1},
 });

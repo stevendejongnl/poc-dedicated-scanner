@@ -1,15 +1,25 @@
 import {BleManager, type Device, type Subscription, State} from 'react-native-ble-plx';
 import {Platform} from 'react-native';
 import type {BleDevice} from '@/domain/scanner/ScannerDevice';
-import {DEFAULT_PROFILE} from './characteristics';
 
 export type BarcodeCallback = (barcode: string) => void;
 export type ScanCallback = (device: BleDevice) => void;
 
+export interface DiscoveredCharacteristic {
+  serviceUUID: string;
+  uuid: string;
+  isNotifiable: boolean;
+  isIndicatable: boolean;
+  isReadable: boolean;
+  isWritableWithResponse: boolean;
+  isWritableWithoutResponse: boolean;
+}
+
 class BleScannerService {
   private manager: BleManager | null = null;
   private connectedDevice: Device | null = null;
-  private subscription: Subscription | null = null;
+  private subscriptions: Subscription[] = [];
+  private discoveredCharacteristics: DiscoveredCharacteristic[] = [];
 
   private getManager(): BleManager {
     if (!this.manager) {
@@ -56,28 +66,48 @@ class BleScannerService {
     const device = await this.getManager().connectToDevice(deviceId);
     await device.discoverAllServicesAndCharacteristics();
     this.connectedDevice = device;
+    this.discoveredCharacteristics = [];
 
-    const {serviceUUID, characteristicUUID} = DEFAULT_PROFILE;
+    const services = await device.services();
+    for (const service of services) {
+      const chars = await service.characteristics();
+      for (const char of chars) {
+        this.discoveredCharacteristics.push({
+          serviceUUID: service.uuid,
+          uuid: char.uuid,
+          isNotifiable: char.isNotifiable,
+          isIndicatable: char.isIndicatable,
+          isReadable: char.isReadable,
+          isWritableWithResponse: char.isWritableWithResponse,
+          isWritableWithoutResponse: char.isWritableWithoutResponse,
+        });
 
-    this.subscription = device.monitorCharacteristicForService(
-      serviceUUID,
-      characteristicUUID,
-      (error, characteristic) => {
-        if (error || !characteristic?.value) {
-          return;
+        if (char.isNotifiable || char.isIndicatable) {
+          const sub = char.monitor((error, characteristic) => {
+            if (error || !characteristic?.value) {
+              return;
+            }
+            // Decode base64 → strip control chars → emit if non-empty
+            const raw = atob(characteristic.value);
+            const barcode = raw.replace(/[\x00-\x1F\x7F]/g, '').trim();
+            if (barcode.length > 0) {
+              onBarcode(barcode);
+            }
+          });
+          this.subscriptions.push(sub);
         }
-        const raw = atob(characteristic.value);
-        const barcode = raw.replace(/[\r\n]/g, '').trim();
-        if (barcode.length > 0) {
-          onBarcode(barcode);
-        }
-      },
-    );
+      }
+    }
+  }
+
+  getDiscoveredCharacteristics(): DiscoveredCharacteristic[] {
+    return this.discoveredCharacteristics;
   }
 
   async disconnect(): Promise<void> {
-    this.subscription?.remove();
-    this.subscription = null;
+    this.subscriptions.forEach(s => s.remove());
+    this.subscriptions = [];
+    this.discoveredCharacteristics = [];
     if (this.connectedDevice) {
       await this.connectedDevice.cancelConnection().catch(() => {});
       this.connectedDevice = null;
@@ -99,8 +129,6 @@ class BleScannerService {
   }
 }
 
-// iOS requires BLE permissions only for central-role scanning.
-// On Android API < 31, location permission is also required for BLE scans.
 export const IS_IOS = Platform.OS === 'ios';
 
 export const bleScannerService = new BleScannerService();
