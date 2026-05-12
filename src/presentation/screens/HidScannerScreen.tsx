@@ -1,6 +1,5 @@
 import React, {useCallback, useState} from 'react';
 import {
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -12,24 +11,11 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {HiddenScannerInput} from '@/presentation/components/HiddenScannerInput';
 import {ScanLog} from '@/presentation/components/ScanLog';
 import type {ScanEvent} from '@/domain/scanner/ScanEvent';
-import {showBluetoothAccessoryPicker} from '@/infrastructure/hid/BluetoothAccessoryPicker';
-
 let eventCounter = 0;
 
-async function openBluetoothSettings() {
+function openBluetoothSettings() {
   if (Platform.OS === 'ios') {
-    try {
-      await showBluetoothAccessoryPicker();
-    } catch (e: any) {
-      if (e?.code === 'USER_CANCELED') {
-        return;
-      }
-      Alert.alert(
-        'Pair via iOS Settings',
-        'Your scanner cannot be paired from within the app — iOS only allows in-app pairing for MFi-certified accessories.\n\nOpen Settings → Bluetooth on your iPhone to connect it.',
-        [{text: 'OK'}],
-      );
-    }
+    Linking.openURL('App-Prefs:Bluetooth').catch(() => Linking.openSettings());
   } else {
     Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() =>
       Linking.openSettings(),
