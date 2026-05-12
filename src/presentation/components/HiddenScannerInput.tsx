@@ -1,4 +1,4 @@
-import React, {useCallback, useRef} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {StyleSheet, TextInput} from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
 import {HidCaptureBuffer} from '@/infrastructure/hid/HidCaptureBuffer';
@@ -17,11 +17,32 @@ interface Props {
  */
 export function HiddenScannerInput({onBarcode}: Props) {
   const inputRef = useRef<TextInput>(null);
-  const bufferRef = useRef(new HidCaptureBuffer(onBarcode));
-  // Tracks the last value we observed from native to compute deltas.
-  // We only clear the native input after a complete barcode, never mid-scan,
-  // to avoid the setNativeProps race where subsequent onChangeText events
-  // arrive before the clear takes effect and deliver accumulated old content.
+  // Changing this key forces a full remount of the TextInput, which is the
+  // only reliable way to guarantee an empty native value between scans.
+  // setNativeProps is async and loses the race against fast HID scanners.
+  const [inputKey, setInputKey] = useState(0);
+
+  // Keep onBarcode ref fresh so the buffer callback always calls the latest.
+  const onBarcodeRef = useRef(onBarcode);
+  onBarcodeRef.current = onBarcode;
+
+  // After each emitted barcode, increment the key to remount the input.
+  // We store this in a ref so the buffer (created once) can always reach it.
+  const remountInputRef = useRef(() => {});
+  remountInputRef.current = () => setInputKey(k => k + 1);
+
+  const bufferRef = useRef(
+    new HidCaptureBuffer(barcode => {
+      onBarcodeRef.current(barcode);
+      remountInputRef.current();
+    }),
+  );
+
+  // Tracks the last native value to compute per-event deltas.
+  // NOT reset after submit — the delta logic handles both the case where the
+  // input already remounted (new text shorter than prev → treat whole text as
+  // delta) and the race where the scanner starts before remount (new text
+  // longer than prev → slice off the prefix we already processed).
   const prevNativeTextRef = useRef('');
 
   const refocus = useCallback(() => {
@@ -37,6 +58,7 @@ export function HiddenScannerInput({onBarcode}: Props) {
 
   return (
     <TextInput
+      key={inputKey}
       ref={inputRef}
       style={styles.hidden}
       autoFocus
@@ -46,9 +68,9 @@ export function HiddenScannerInput({onBarcode}: Props) {
       showSoftInputOnFocus={false}
       onBlur={refocus}
       onChangeText={text => {
-        // onChangeText delivers the FULL current native value, not a delta.
-        // Slice off only the characters added since the last event.
         const prev = prevNativeTextRef.current;
+        // text.length < prev.length means the input was cleared or remounted;
+        // treat the entire new value as fresh input rather than a suffix.
         const delta = text.length >= prev.length ? text.slice(prev.length) : text;
         prevNativeTextRef.current = text;
         if (delta) {
@@ -56,10 +78,9 @@ export function HiddenScannerInput({onBarcode}: Props) {
         }
       }}
       onSubmitEditing={() => {
-        // Scanner sent Enter — flush the buffer and clear the input once.
+        // Flush immediately on Enter; remount is triggered by the buffer
+        // callback above after it emits the barcode.
         bufferRef.current.submit();
-        prevNativeTextRef.current = '';
-        inputRef.current?.setNativeProps({text: ''});
       }}
     />
   );
