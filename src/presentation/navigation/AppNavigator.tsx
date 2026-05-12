@@ -5,12 +5,14 @@ import {HomeScreen} from '@/presentation/screens/HomeScreen';
 import {HidScannerScreen} from '@/presentation/screens/HidScannerScreen';
 import {BleDiscoveryScreen} from '@/presentation/screens/BleDiscoveryScreen';
 import {DeviceInfoScreen} from '@/presentation/screens/DeviceInfoScreen';
+import {DebugScreen} from '@/presentation/screens/DebugScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   HidScanner: undefined;
   BleDiscovery: undefined;
   DeviceInfo: undefined;
+  Debug: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,6 +42,11 @@ export function AppNavigator() {
           name="DeviceInfo"
           component={DeviceInfoScreen}
           options={{title: 'Bonded Devices'}}
+        />
+        <Stack.Screen
+          name="Debug"
+          component={DebugScreen}
+          options={{title: 'BT Debug'}}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -105,6 +105,17 @@ export function HomeScreen() {
             </View>
           </Pressable>
         )}
+
+        <Pressable
+          style={[styles.card, styles.cardSecondary]}
+          onPress={() => navigation.navigate('Debug')}>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>🔍 BT Debug</Text>
+            <Text style={styles.cardDesc}>
+              Inspect MFi accessories, scan for nearby BLE peripherals and see raw device info.
+            </Text>
+          </View>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

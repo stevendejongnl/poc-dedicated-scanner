@@ -26,6 +26,24 @@ RCT_EXPORT_METHOD(showPicker:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromis
   });
 }
 
+RCT_EXPORT_METHOD(getConnectedAccessories:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  NSArray<EAAccessory *> *accessories = [[EAAccessoryManager sharedAccessoryManager] connectedAccessories];
+  NSMutableArray *result = [NSMutableArray array];
+  for (EAAccessory *acc in accessories) {
+    [result addObject:@{
+      @"name": acc.name ?: @"",
+      @"manufacturer": acc.manufacturer ?: @"",
+      @"modelNumber": acc.modelNumber ?: @"",
+      @"serialNumber": acc.serialNumber ?: @"",
+      @"firmwareRevision": acc.firmwareRevision ?: @"",
+      @"hardwareRevision": acc.hardwareRevision ?: @"",
+      @"connectionID": @(acc.connectionID),
+      @"protocolStrings": acc.protocolStrings ?: @[],
+    }];
+  }
+  resolve(result);
+}
+
 + (BOOL)requiresMainQueueSetup { return NO; }
 
 @end
