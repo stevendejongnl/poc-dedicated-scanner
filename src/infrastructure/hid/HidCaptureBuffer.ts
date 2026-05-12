@@ -39,13 +39,9 @@ export class HidCaptureBuffer {
   }
 
   /** Call when the text input fires onSubmitEditing (Enter key). */
-  onSubmit(value: string): void {
+  submit(): void {
     this.cancelTimer();
-    const barcode = value.trim();
-    if (barcode.length > 0) {
-      this.onBarcode(barcode);
-    }
-    this.buffer = '';
+    this.flush();
   }
 
   reset(): void {

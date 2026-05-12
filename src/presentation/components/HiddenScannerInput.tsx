@@ -18,6 +18,11 @@ interface Props {
 export function HiddenScannerInput({onBarcode}: Props) {
   const inputRef = useRef<TextInput>(null);
   const bufferRef = useRef(new HidCaptureBuffer(onBarcode));
+  // Tracks the last value we observed from native to compute deltas.
+  // We only clear the native input after a complete barcode, never mid-scan,
+  // to avoid the setNativeProps race where subsequent onChangeText events
+  // arrive before the clear takes effect and deliver accumulated old content.
+  const prevNativeTextRef = useRef('');
 
   const refocus = useCallback(() => {
     inputRef.current?.focus();
@@ -41,12 +46,19 @@ export function HiddenScannerInput({onBarcode}: Props) {
       showSoftInputOnFocus={false}
       onBlur={refocus}
       onChangeText={text => {
-        bufferRef.current.push(text);
-        // Clear the visible value so the next scan starts fresh.
-        inputRef.current?.setNativeProps({text: ''});
+        // onChangeText delivers the FULL current native value, not a delta.
+        // Slice off only the characters added since the last event.
+        const prev = prevNativeTextRef.current;
+        const delta = text.length >= prev.length ? text.slice(prev.length) : text;
+        prevNativeTextRef.current = text;
+        if (delta) {
+          bufferRef.current.push(delta);
+        }
       }}
-      onSubmitEditing={e => {
-        bufferRef.current.onSubmit(e.nativeEvent.text);
+      onSubmitEditing={() => {
+        // Scanner sent Enter — flush the buffer and clear the input once.
+        bufferRef.current.submit();
+        prevNativeTextRef.current = '';
         inputRef.current?.setNativeProps({text: ''});
       }}
     />
