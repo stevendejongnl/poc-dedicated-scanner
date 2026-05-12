@@ -15,7 +15,7 @@ let eventCounter = 0;
 
 function openBluetoothSettings() {
   if (Platform.OS === 'ios') {
-    Linking.openURL('App-Prefs:Bluetooth').catch(() => Linking.openSettings());
+    Linking.openURL('App-Prefs:root=Bluetooth').catch(() => Linking.openSettings());
   } else {
     Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() =>
       Linking.openSettings(),
