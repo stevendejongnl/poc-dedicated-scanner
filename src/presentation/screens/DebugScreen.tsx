@@ -83,7 +83,7 @@ export function DebugScreen() {
       await bleScannerService.connect(device.id, () => {});
       setConnectedId(device.id);
       setGattChars(bleScannerService.getDiscoveredCharacteristics());
-    } catch (e: any) {
+    } catch {
       setConnectedId(null);
       setGattChars([]);
     } finally {

@@ -89,6 +89,7 @@ class BleScannerService {
             }
             // Decode base64 → strip control chars → emit if non-empty
             const raw = atob(characteristic.value);
+            // eslint-disable-next-line no-control-regex
             const barcode = raw.replace(/[\x00-\x1F\x7F]/g, '').trim();
             if (barcode.length > 0) {
               onBarcode(barcode);
