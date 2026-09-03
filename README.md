@@ -1,97 +1,90 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# PoC: Dedicated Scanner
 
-# Getting Started
+A React Native proof of concept for connecting a dedicated Bluetooth barcode
+scanner to a mobile app on both iOS and Android, and reading out scanned
+barcodes in real time.
+
+Bluetooth barcode scanners generally show up in one of two modes, and this
+app supports both:
+
+- **HID / keyboard-wedge mode** — the scanner pairs like a Bluetooth keyboard
+  via the OS Bluetooth settings and "types" each scanned barcode followed by
+  Enter. The app captures this with a hidden, always-focused text input and a
+  buffer (`HidCaptureBuffer`) that reassembles the fast character stream into
+  discrete barcodes, flushing on Enter/CR or after a short idle timeout for
+  scanners configured without a terminator.
+- **BLE GATT mode** — the scanner advertises as a BLE peripheral and is
+  scanned for and connected to directly from within the app (via
+  `react-native-ble-plx`), without leaving the app or using OS Bluetooth
+  settings. On connect, all services/characteristics are discovered and any
+  notifiable/indicatable characteristic is subscribed to; incoming values are
+  decoded and emitted as barcodes.
+
+## Hardware
+
+Scanner used for testing: [NETUM C750 — Bluetooth 2D barcode scanner](https://nl.aliexpress.com/item/1005006861040474.html)
+(pocket-sized, decodes 1D/QR/PDF417/Data Matrix, connects via Bluetooth or USB).
+
+## Features
+
+- **Home** — choose HID or BLE mode; auto-reconnects to the last-used BLE
+  device on launch (preference persisted with `AsyncStorage`).
+- **HID Scanner** — live scan log while the scanner is paired via Bluetooth
+  Settings, with a shortcut to open those settings.
+- **BLE Scanner** — scan for, connect to, and disconnect from nearby BLE
+  devices, with a live scan log.
+- **Bonded Devices** (Android only) — lists all Bluetooth devices paired with
+  the phone and flags ones with a keyboard device class as likely scanners.
+- **BT Debug** — inspects MFi accessories via iOS's `EAAccessoryManager`
+  (native module `BluetoothAccessoryPicker.m`), lists nearby raw BLE
+  peripherals, and shows discovered GATT services/characteristics for a
+  connected device.
+
+## Project structure
+
+```
+src/
+  domain/scanner/        # ScannerDevice, ScanEvent types
+  infrastructure/
+    ble/                  # BleScannerService (react-native-ble-plx)
+    hid/                  # HidCaptureBuffer, BluetoothAccessoryPicker bridge
+    bondedDevices/        # Android bonded-device inspection
+    storage/              # ScannerPreferences (AsyncStorage)
+  presentation/
+    screens/              # Home, HidScanner, BleDiscovery, DeviceInfo, Debug
+    components/           # HiddenScannerInput, ScanLog
+    navigation/           # AppNavigator (React Navigation stack)
+```
+
+## Getting Started
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
-## Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
+Start the Metro dev server:
 
 ```sh
-# Using npm
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+Then, in another terminal, build and run on a platform:
 
 ```sh
-# Using npm
 npm run android
-
-# OR using Yarn
-yarn android
+# or
+npm run ios
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+For iOS, install CocoaPods dependencies first (only needed on first clone or
+after updating native deps):
 
 ```sh
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Other useful scripts: `npm test`, `npm run lint`, `npm run typecheck`.
 
-```sh
-# Using npm
-npm run ios
+## Learn More
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- [React Native Website](https://reactnative.dev)
+- [react-native-ble-plx](https://github.com/dotintent/react-native-ble-plx)
